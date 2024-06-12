@@ -40,7 +40,7 @@ jobs:
 
       - name: Setup Bandit SAST
         continue-on-error: true
-        run: pip install -y bandit
+        run: pip install bandit -y
       
       - name: Run Bandit SAST
         continue-on-error: true
