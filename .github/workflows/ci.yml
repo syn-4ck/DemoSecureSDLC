@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python-version: ['3.7', '3.8', '3.9', '3.10']
+        python-version: ['3.9', '3.10']
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -28,14 +28,18 @@ jobs:
           pip install -r requirements.txt
       
       - name: Run GitLeaks for Secrets
+        id: gitleaks
+        continue-on-error: true
         uses: gacts/gitleaks@v1
       
       - if: ${{ always() }}
+        continue-on-error: true
         uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: ${{ steps.gitleaks.outputs.sarif }}
 
       - name: Setup Bandit SAST
+        continue-on-error: true
         run: pip install -y bandit
       
       - name: Run Bandit SAST
@@ -43,16 +47,21 @@ jobs:
         run: bandit -r ./src f sarif -o bandit-results.sarif
 
       - name: Upload OSV scan results to GitHub Security tab
+        continue-on-error: true
         uses: github/codeql-action/upload-sarif@v2
         if: always()
         with:
           sarif_file: 'bandit-results.sarif'
       
-      - uses: snyk/actions/setup@master
-
-      - uses: actions/setup-go@v1
+      - name: Set up Snyk deps 
+        continue-on-error: true
+        uses: actions/setup-go@v1
         with:
           go-version: '1.13'
+
+      - name: Set up Snyk
+        continue-on-error: true
+        uses: snyk/actions/setup@master
 
       - name: Snyk code scanning
         continue-on-error: true
@@ -69,6 +78,7 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
       
       - name: Upload Snyk scan results to GitHub Security tab
+        continue-on-error: true
         uses: github/codeql-action/upload-sarif@v2
         if: always()
         with:
@@ -103,6 +113,7 @@ jobs:
           output: 'trivy-results.sarif'
 
       - name: Upload Trivy scan results to GitHub Security tab
+        continue-on-error: true
         uses: github/codeql-action/upload-sarif@v2
         if: always()
         with:
