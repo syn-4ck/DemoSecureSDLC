@@ -24,8 +24,7 @@ jobs:
           cache: 'pip'
 
       - name: Build
-        run: |
-          pip install -r requirements.txt
+        run: pip install -r requirements.txt
       
       - name: Run GitLeaks for Secrets
         id: gitleaks
@@ -40,7 +39,7 @@ jobs:
 
       - name: Setup Bandit SAST
         continue-on-error: true
-        run: pip install bandit -y
+        run: pip install bandit
       
       - name: Run Bandit SAST
         continue-on-error: true
@@ -62,18 +61,16 @@ jobs:
       - name: Set up Snyk
         continue-on-error: true
         uses: snyk/actions/setup@master
-
-      - name: Snyk code scanning
+      
+      - name: Snyk test
         continue-on-error: true
-        uses: snyk/actions/node@master
-        with:
-          sarif_file: snyk-results.sarif
+        run: snyk test --sarif --sarif-file-output=snyk-results.sarif
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-      
+
       - name: Snyk monitor
         continue-on-error: true
-        run: snyk test
+        run: snyk monitor
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
       
