@@ -1,0 +1,122 @@
+---
+name: CI
+on:
+  pull_request:
+
+permissions:
+  security-events: write
+
+jobs:
+  build-python:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ['3.7', '3.8', '3.9', '3.10']
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Setup python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Build
+        run: |
+          pip install -r requirements.txt
+      
+      - name: Run OSV scanner to detect vulns in dependencies
+        continue-on-error: true
+        uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@1f1242919d8a60496dd1874b24b62b2370ed4c78" # v1.7.1
+        with:
+          scan-args: |-
+            -r --skip-git --format sarif --output osv-results.sarif ./
+
+      - name: Upload OSV scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'osv-results.sarif'
+      
+      - name: Run GitLeaks for Secrets
+        uses: gacts/gitleaks@v1
+      
+      - if: ${{ always() }}
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: ${{ steps.gitleaks.outputs.sarif }}
+
+      - name: Setup Bandit SAST
+        run: pip install -y bandit
+      
+      - name: Run Bandit SAST
+        continue-on-error: true
+        run: bandit -r ./src f sarif -o bandit-results.sarif
+
+      - name: Upload OSV scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'bandit-results.sarif'
+      
+      - uses: snyk/actions/setup@master
+
+      - uses: actions/setup-go@v1
+        with:
+          go-version: '1.13'
+
+      - name: Snyk code scanning
+        continue-on-error: true
+        uses: snyk/actions/node@master
+        with:
+          sarif_file: snyk-results.sarif
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      
+      - name: Snyk monitor
+        continue-on-error: true
+        run: snyk test
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      
+      - name: Upload Snyk scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'snyk-results.sarif'
+
+  build-docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Build Docker
+        run: docker build . --file Dockerfile --tag test/demossdlc:latest
+
+      - name: Run Trivy vulnerability scanner
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: 'test/demossdlc:latest'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: false
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+      
+      - name: Run Trivy vulnerability scanner to GitHub Security Tab
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: 'test/demossdlc:latest'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
