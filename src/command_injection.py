@@ -8,7 +8,7 @@ def test_sources_7(something):
     
     os.system(request.remote_addr) 
 
-    return "foo"
+    return "foo2"
 
 if __name__ == "__main__":
 	app.run(debug=True) 
