@@ -6,7 +6,7 @@ import flask
 app = flask.Flask(__name__)
 app.config['DEBUG'] = True
 
-PASSWORD = 'j8dsu.8s7kd8saj*saj98'
+PASSWORD = 'j8dsu.8s7kd8saj*saj98s'
 
 @app.route('/', methods=['GET'])
 def home():
